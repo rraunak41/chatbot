@@ -9,10 +9,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-# 1. Initialize LLM Engine
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
 
-# 2. Define LangGraph Architecture
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -38,10 +36,6 @@ memory = MemorySaver()
 graph = workflow.compile(checkpointer=memory)
 
 
-# =====================================================================
-# 3. BACKEND SESSION HELPER FUNCTIONS
-# =====================================================================
-
 def get_history_from_graph(thread_id: str):
     """Fetches and formats historical messages out of LangGraph's memory store."""
     config = {"configurable": {"thread_id": thread_id}}
@@ -50,18 +44,13 @@ def get_history_from_graph(thread_id: str):
     formatted_history = []
     if state and "messages" in state.values:
         messages = state.values["messages"]
-        # Convert LangGraph messages into standard Gradio chat history format
+        
         for msg in messages:
             if isinstance(msg, HumanMessage):
                 formatted_history.append({"role": "user", "content": msg.content})
             elif isinstance(msg, AIMessage):
                 formatted_history.append({"role": "assistant", "content": msg.content})
     return formatted_history
-
-
-# =====================================================================
-# 4. STREAMING ENGINE & INTERFACE CONTROLLERS
-# =====================================================================
 
 async def user_message(message, history):
     """Instantly adds user message to UI chat log and clears the text box."""
@@ -76,7 +65,6 @@ async def stream_response(history, active_thread_id):
     last_user_message = history[-1]["content"]
     input_state = {"messages": [("user", last_user_message)]}
     
-    # Append a placeholder assistant bubble that we will stream text into
     history.append({"role": "assistant", "content": ""})
     token_accumulator = ""
     
@@ -92,9 +80,9 @@ async def stream_response(history, active_thread_id):
 
 def start_new_chat(sessions_list):
     """Triggers when 'Start New Chat' button is clicked."""
-    new_id = f"Chat-{str(uuid.uuid4())[:8]}"  # Short recognizable ID
+    new_id = f"Chat-{str(uuid.uuid4())[:8]}"  
     updated_sessions = [new_id] + sessions_list
-    # Returns: blank chat window, updated session state, refreshed sidebar dropdown, and active ID
+
     return [], updated_sessions, gr.update(choices=updated_sessions, value=new_id), new_id
 
 
@@ -105,10 +93,6 @@ def load_selected_chat(selected_id):
     history = get_history_from_graph(selected_id)
     return history, selected_id
 
-
-# =====================================================================
-# 5. PREMIUM ADVANCED SIDEBAR LAYOUT (GRADIO BLOCKS)
-# =====================================================================
 
 custom_theme = gr.themes.Soft(primary_hue="indigo", neutral_hue="slate")
 
@@ -122,21 +106,16 @@ body, .gradio-container { background: #0b0f19 !important; min-height: 100vh; }
 
 with gr.Blocks(theme=custom_theme, css=custom_css, title="Nexus GPT") as demo:
     
-    # Session State Memory registers inside the browser instance
     all_threads = gr.State(value=["Chat-Default"])
     active_thread_id = gr.State(value="Chat-Default")
     
     with gr.Row():
-        
-        # SIDEBAR PANEL (Left Side, Scale 1)
         with gr.Column(scale=1, elem_classes="sidebar-panel"):
             gr.Markdown("### 🧠 Nexus Workspace")
             new_chat_btn = gr.Button("➕ Start New Chat", variant="primary")
             
             gr.Markdown("---")
             gr.Markdown("#### 📋 My Conversations")
-            
-            # Interactive click list via a dropdown menu selection tracker
             session_selector = gr.Dropdown(
                 choices=["Chat-Default"], 
                 value="Chat-Default", 
@@ -147,7 +126,6 @@ with gr.Blocks(theme=custom_theme, css=custom_css, title="Nexus GPT") as demo:
             
             gr.Markdown("<br><br><small>Each thread maintains completely isolated contextual memory states.</small>")
             
-        # CHAT WINDOW PANEL (Right Side, Scale 3)
         with gr.Column(scale=3, elem_classes="chat-panel"):
             gr.Markdown("# 🔮 Nexus Expert Assistant")
             
@@ -166,11 +144,6 @@ with gr.Blocks(theme=custom_theme, css=custom_css, title="Nexus GPT") as demo:
                 )
                 submit_btn = gr.Button("Send", variant="secondary", scale=1)
 
-    # =====================================================================
-    # EVENT WIRE-UP LOGIC
-    # =====================================================================
-    
-    # Submit actions (Enter key or Button Click)
     submit_event = submit_btn.click(
         fn=user_message, inputs=[txt_input, chatbot], outputs=[txt_input, chatbot], queue=False
     ).then(
@@ -182,15 +155,13 @@ with gr.Blocks(theme=custom_theme, css=custom_css, title="Nexus GPT") as demo:
     ).then(
         fn=stream_response, inputs=[chatbot, active_thread_id], outputs=chatbot
     )
-    
-    # "Start New Chat" Button Workflow
+
     new_chat_btn.click(
         fn=start_new_chat, 
         inputs=[all_threads], 
         outputs=[chatbot, all_threads, session_selector, active_thread_id]
     )
-    
-    # Clicking / Selecting a past thread inside the Sidebar selector
+
     session_selector.change(
         fn=load_selected_chat,
         inputs=[session_selector],
