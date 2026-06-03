@@ -11,8 +11,6 @@ from langgraph.checkpoint.memory import MemorySaver
 load_dotenv()
 
 app=FastAPI()
-
-# Enable CORS so Gradio can communicate with FastAPI
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,15 +19,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 1. Initialize Gemini
 model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
-# 2. Define Node
 def call_model(state: MessagesState):
     response = model.invoke(state["messages"])
     return {"messages": [response]}
 
-# 3. Build Graph with Memory
 workflow = StateGraph(MessagesState)
 workflow.add_node("agent", call_model)
 workflow.add_edge(START, "agent")
