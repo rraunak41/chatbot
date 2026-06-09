@@ -1,11 +1,9 @@
-fastapi
-uvicorn
-pydantic
+gradio
 langchain-google-genai
 langgraph
-python-dotenv
-streamlit
-requests
 langgraph-checkpoint-sqlite
 aiosqlite
-gradio
+wikipedia
+duckduckgo-search
+pydantic
+python-dotenv
